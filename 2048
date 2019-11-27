@@ -1,0 +1,296 @@
+#!/usr/bin/env python
+
+import random
+import argparse
+import csv
+
+board = []
+size = 4
+score = 0
+status = 'playing'
+hello_message = 'Welcome to 2048!\nThe object of the game ' \
+                'is to reach the 2048 tile by combining like ' \
+                'numbers.\nUse WASD to choose direction.\n' \
+                'Press R at any time to restart.\n'
+invalid_move = 'Invalid input. Valid inputs are WASDR.'
+win_message = 'Congratulations! You win!'
+lose_message = 'Oh no, you lost!'
+
+
+# checks if there are any possible moves remaining
+def any_moves():
+    for row_idx, row in enumerate(board):
+        for col_idx, col in enumerate(row):
+            if col == '.':
+                return True
+            try:
+                if board[row_idx][col_idx + 1] == col:
+                    return True
+            except KeyError and IndexError:
+                pass
+            try:
+                if board[row_idx][col_idx - 1] == col:
+                    return True
+            except KeyError and IndexError:
+                pass
+            try:
+                if board[row_idx + 1][col_idx] == col:
+                    return True
+            except KeyError and IndexError:
+                pass
+            try:
+                if board[row_idx - 1][col_idx] == col:
+                    return True
+            except KeyError and IndexError:
+                pass
+    return False
+
+
+# rotates the board to the right
+def rotate_right():
+    global board
+
+    new_board = []
+    col = 0
+    row = size - 1
+    added = 0
+    new_row = 0
+    rows = 0
+    for idx in range(0, size):
+        new_board.append([])
+    while True:
+        new_board[new_row].append(board[row][col])
+        row -= 1
+        added += 1
+        if added == size:
+            col += 1
+            row = size - 1
+            added = 0
+            new_row += 1
+            rows += 1
+            if rows == size:
+                break
+
+    board = new_board
+
+
+# rotates the board to the left
+def rotate_left():
+    global board
+
+    new_board = []
+    for idx in range(0, size):
+        new_board.append([])
+    col = 0
+    row = 0
+    added = 0
+    new_row = size - 1
+    rows = 0
+    while True:
+        new_board[new_row].append(board[row][col])
+        col += 1
+        new_row -= 1
+        added += 1
+        if added == size:
+            col = 0
+            row += 1
+            new_row = size - 1
+            rows += 1
+            added = 0
+            if rows == size:
+                break
+
+    board = new_board
+
+
+# returns the open spaces on the board
+def any_open_spaces():
+    opens = []
+    for row_idx, row in enumerate(board):
+        for col_idx, col in enumerate(row):
+            if col == '.':
+                opens.append([row_idx, col_idx])
+    return opens
+
+
+# print the board
+def print_board():
+    for row in board:
+        row_string = ''
+        for col in row:
+            row_string += (str(col))
+            for count in range(0, 6 - len(str(col))):
+                row_string += ' '
+        print(row_string)
+        print('')
+        print('')
+
+
+# create starting board
+def init_board():
+    global board
+
+    board = []
+
+    for count in range(0, size):
+        row = []
+        for countess in range(0, size):
+            row.append('.')
+        board.append(row)
+
+    row = random.randrange(size)
+    col = random.randrange(size)
+
+    board[row][col] = 2
+
+
+# move the tiles up
+def move_up():
+    global status
+    global score
+
+    any_moved = False
+
+    for row_num, row_item in enumerate(board):
+        if row_num == 0:
+            pass
+        for col_num, col_item in enumerate(row_item):
+            if col_item == '.':
+                continue
+            curr_row = row_num
+            while curr_row != 0:
+                next_item = board[curr_row - 1][col_num]
+                if next_item == '.':
+                    board[curr_row][col_num] = '.'
+                    board[curr_row - 1][col_num] = col_item
+                    curr_row -= 1
+                    any_moved = True
+                elif next_item == col_item:
+                    board[curr_row][col_num] = '.'
+                    board[curr_row - 1][col_num] = next_item * 2
+                    score += (next_item * 2)
+                    if next_item * 2 == 2048:
+                        status = 'won'
+                    any_moved = True
+                    break
+                else:
+                    break
+
+    opens = any_open_spaces()
+    if len(opens) != 0 and any_moved:
+        n = random.randrange(len(opens))
+        new_row = opens[n][0]
+        new_col = opens[n][1]
+        board[new_row][new_col] = 2
+
+    if len(opens) > 1:
+        return 'success'
+
+    else:
+        return 'full'
+
+
+# move the tiles down
+def move_down():
+    board.reverse()
+    res = move_up()
+    board.reverse()
+    return res
+
+
+# move the tiles left
+def move_left():
+    rotate_right()
+    res = move_up()
+    rotate_left()
+    return res
+
+
+# move the tiles right
+def move_right():
+    rotate_left()
+    res = move_up()
+    rotate_right()
+    return res
+
+
+# move the tiles based on the given direction
+def move_tiles(direct):
+    if direct in ['w', 'W']:
+        return move_up()
+    if direct in ['a', 'A']:
+        return move_left()
+    if direct in ['s', 'S']:
+        return move_down()
+    if direct in ['d', 'D']:
+        return move_right()
+
+    return 'invalid'
+
+
+parser = argparse.ArgumentParser(description='size')
+parser.add_argument('size', metavar='size', type=int, nargs='+', help="size")
+args = parser.parse_args()
+try:
+    size = args.size[0]
+except KeyError:
+    pass
+
+init_board()
+
+print(hello_message)
+
+while status == 'playing':
+    print('\nScore:', score)
+    print_board()
+    direction = input()
+
+    if direction in ['r', 'R']:
+        init_board()
+        print_board()
+        continue
+
+    result = move_tiles(direction)
+
+    if result == 'invalid':
+        print(invalid_move)
+    elif result == 'success':
+        continue
+    elif result == 'full':
+        if not any_moves():
+            print(lose_message)
+            break
+
+if status == 'won':
+    print(win_message)
+
+wins = 0
+high_score = 0
+played = 0
+reader = csv.reader(open('./stats'), delimiter=' ')
+for row in reader:
+    print(row)
+    if row[0] == 'wins:':
+        if status == 'won':
+            wins = int(row[1]) + 1
+        else:
+            wins = int(row[1])
+    elif row[0] == 'high_score:':
+        high_score = int(row[1])
+        if score > high_score:
+            high_score = score
+    elif row[0] == 'total_played:':
+        played = int(row[1]) + 1
+
+f = open('./stats', 'w')
+f.write('wins: ' + str(wins) + '\nhigh_score: '
+        + str(high_score) + '\ntotal_played: ' + played)
+f.close()
+print('Score:', score)
+print('High Score:', high_score)
+if status == 'won':
+    print('Result:', 'won')
+else:
+    print('Result:', 'lost')
+print('Wins:', wins)
+print('Total Games Played:', played)
